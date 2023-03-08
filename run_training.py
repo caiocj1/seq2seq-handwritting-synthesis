@@ -57,8 +57,7 @@ if __name__ == '__main__':
                       devices=1 if torch.cuda.is_available() else None,
                       max_epochs=10,
                       num_sanity_val_steps=0,
-                      val_check_interval=10000,
-                      #limit_val_batches=0,
+                      limit_val_batches=0.0,
                       callbacks=[model_ckpt, lr_monitor],
                       logger=logger)
     trainer.fit(model, data_module)
