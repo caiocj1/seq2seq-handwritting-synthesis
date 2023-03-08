@@ -135,7 +135,7 @@ class ConGenModel(LightningModule):
             if len(inp.size()) == 2:
                 inp = inp.unsqueeze(1)
 
-            embed = torch.cat([inp, old_w], dim=-1)  # adding attention window to the input of rnn
+            embed = torch.cat([inp, old_w], dim=-1).float()  # adding attention window to the input of rnn
 
             output1, hidden1 = self.rnn1(embed, hidden1)
             if self.bi_mode == 1:
@@ -186,8 +186,8 @@ class ConGenModel(LightningModule):
     #    return torch.zeros(self.n_layers * self.bi, self.batch_size, self.hidden_size)
 
     def initLHidden(self, batch_size):
-        return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size),
-                torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size))
+        return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float(),
+                torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float())
 
     def mdn_loss(self, mdn_params, data, mask=[]):
 
