@@ -1,0 +1,18 @@
+DatasetParams:
+  min_seq: 400
+  max_seq: 800
+  max_text_len: 40
+
+CongenModelParams:
+  input_size: 3
+  hidden_size: 400
+  num_gaussian: 20
+  char_vec_len: 61
+  dropout_p: 0.2
+  n_layers: 1
+  bi_dir: True
+  bi_mode: 2
+  num_attn_gaussian: 10
+  bias: 0
+
+TrainingParams:
