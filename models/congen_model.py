@@ -114,7 +114,7 @@ class ConGenModel(LightningModule):
 
     def forward(self, batch):
         # inp, char_vec, old_k, old_w, text_len, hidden1, hidden2, bias = 0
-        batch_size = len(batch[0][0].size(0))
+        batch_size = batch[0][0].size(0)
 
         data, mask, text_len, char_to_vec, vec_to_char = batch
         text_len = text_len.unsqueeze(1)
