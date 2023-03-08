@@ -4,8 +4,6 @@ import torch.nn as nn
 import os
 import yaml
 from yaml import SafeLoader
-from collections import OrderedDict
-import torch.functional as F
 import numpy as np
 
 class ConGenModel(LightningModule):
