@@ -120,8 +120,9 @@ class ConGenModel(LightningModule):
         stroke_tensor, target_tensor, text_tensor = data
         stroke_mask, text_mask = mask
 
-        hidden1 = self.initLHidden(batch_size).to(stroke_tensor.device)
-        hidden2 = self.initLHidden(batch_size).to(stroke_tensor.device)
+        device = stroke_tensor.device
+        hidden1 = self.initLHidden(batch_size, device)
+        hidden2 = self.initLHidden(batch_size, device)
         old_k = torch.zeros((batch_size, self.num_attn_gaussian), dtype=torch.float)
         old_w = text_tensor.narrow(1, 0, 1)
 
@@ -183,9 +184,9 @@ class ConGenModel(LightningModule):
     #def initHidden(self):
     #    return torch.zeros(self.n_layers * self.bi, self.batch_size, self.hidden_size)
 
-    def initLHidden(self, batch_size):
-        return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float(),
-                torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float())
+    def initLHidden(self, batch_size, device):
+        return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device),
+                torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device))
 
     def mdn_loss(self, mdn_params, data, mask=[]):
 
