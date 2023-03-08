@@ -167,7 +167,7 @@ class ConGenModel(LightningModule):
             e_t = y_t[:, 0:1]
             pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t = torch.split(y_t[:, 1:], self.num_gaussian, dim=1)
             e_t = torch.sigmoid(e_t)
-            pi_t = torch.softmax(pi_t * (1 + self.bias))  # bias would be used during inference
+            pi_t = torch.softmax(pi_t * (1 + self.bias), dim=-1)  # bias would be used during inference
             s1_t, s2_t = torch.exp(s1_t), torch.exp(s2_t)
             rho_t = torch.tanh(rho_t)
             ##########################################################
