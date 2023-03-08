@@ -155,7 +155,7 @@ class ConGenModel(LightningModule):
             win_t = torch.sum(torch.mul(phi.unsqueeze(2), text_tensor), dim=1)
             ##########################################################
 
-            inp_skip = torch.cat([output1, inp, win_t.unsqueeze(1)], dim=-1)  # implementing skip connection
+            inp_skip = torch.cat([output1, inp, win_t.unsqueeze(1)], dim=-1).float()  # implementing skip connection
             output2, hidden2 = self.rnn2(inp_skip, hidden2)
             if self.bi_mode == 1:
                 output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
