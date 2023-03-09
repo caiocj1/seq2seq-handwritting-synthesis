@@ -60,7 +60,7 @@ def sample_congen(lr_model,
 
     phis, win = [], []
     count = 0
-    stop = False
+    #stop = False
 
     mixture_params = []
     hidden1 = (torch.zeros(bi, 1, hidden_size), torch.zeros(bi, 1, hidden_size))
@@ -68,7 +68,14 @@ def sample_congen(lr_model,
 
 
     for i in range(time_step):
-        mdn_params, hidden1, hidden2 = lr_model.sample(prev_x.unsqueeze(0), text_tensor.unsqueeze(0), old_k, old_w, text_len, hidden1, hidden2, bias1)
+        mdn_params, hidden1, hidden2 = lr_model.sample(prev_x.unsqueeze(0),
+                                                       text_tensor.unsqueeze(0),
+                                                       old_k,
+                                                       old_w,
+                                                       text_len,
+                                                       hidden1,
+                                                       hidden2,
+                                                       bias1)
         old_k = mdn_params[-1]
         old_w = mdn_params[-2].unsqueeze(1)
         idx = get_pi_id(np.random.random(), mdn_params[1][0])
@@ -81,7 +88,8 @@ def sample_congen(lr_model,
 
         next_x1, next_x2 = sample_gaussian_2d(mdn_params[2][0][idx].detach().cpu().numpy(),
                                               mdn_params[3][0][idx].detach().cpu().numpy(),
-                                              log_s1.detach().cpu().numpy(), log_s2.detach().cpu().numpy(),
+                                              log_s1.detach().cpu().numpy(),
+                                              log_s2.detach().cpu().numpy(),
                                               mdn_params[6][0][idx].detach().cpu().numpy())
 
         strokes[i, :] = [eos, next_x1, next_x2]
@@ -97,10 +105,13 @@ def sample_congen(lr_model,
         old_phi = mdn_params[-3].squeeze(0)
         old_phi = old_phi.data.cpu().numpy()
 
-        if count >= 40 and np.max(old_phi) == old_phi[-1]:
-            stop = True
-        else:
-            count += 1
+        # if count >= 40 and np.max(old_phi) == old_phi[-1]:
+        #     stop = True
+        #     #break
+        # else:
+        #     count += 1
+
+        count += 1
 
     phis = torch.stack(phis).data.cpu().numpy().T
     win = torch.stack(win).data.cpu().numpy().T

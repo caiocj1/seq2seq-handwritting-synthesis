@@ -19,5 +19,6 @@ def load_pretrained_congen(ckpt_path):
     hidden_size = model_params["hidden_size"]
 
     lr_model = ConGenModel.load_from_checkpoint(ckpt_path)
+    lr_model.eval()
 
     return lr_model, char_to_code, hidden_size

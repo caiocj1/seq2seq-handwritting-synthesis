@@ -16,3 +16,4 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
+  clip: 10.0
