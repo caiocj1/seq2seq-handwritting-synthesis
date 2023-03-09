@@ -188,6 +188,7 @@ class ConGenModel(LightningModule):
         if len(inp.size()) == 2:
             inp = inp.unsqueeze(1)
 
+        device = inp.device
         embed = torch.cat([inp, old_w], dim=-1).float()  # adding attention window to the input of rnn
 
         output1, hidden1 = self.rnn1(embed, hidden1)
@@ -201,7 +202,7 @@ class ConGenModel(LightningModule):
         #######################################################
 
         ##### implementing Eqn. 46 and 47 of the paper ###########
-        u = torch.linspace(1, char_vec.shape[1], char_vec.shape[1])
+        u = torch.linspace(1, char_vec.shape[1], char_vec.shape[1]).to(device)
         phi_bku = torch.exp(torch.mul(torch.sub(k_t.unsqueeze(2).repeat((1, 1, len(u))), u) ** 2,
                                       -b_t.unsqueeze(2)))
         phi = torch.sum(torch.mul(a_t.unsqueeze(2), phi_bku), dim=1) * (char_vec.shape[1] / text_len)
