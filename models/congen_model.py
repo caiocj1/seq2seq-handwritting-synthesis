@@ -131,6 +131,7 @@ class ConGenModel(LightningModule):
         for stroke in range(self.max_seq):
             inp = stroke_tensor[:, stroke, :]
 
+            # MODEL FORWARD START --------------------------------------------------------- #
             if len(inp.size()) == 2:
                 inp = inp.unsqueeze(1)
 
@@ -172,6 +173,7 @@ class ConGenModel(LightningModule):
             ##########################################################
 
             mdn_params = [e_t, pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t, phi, win_t, k_t]
+            # MODEL FORWARD END ----------------------------------------------------------- #
 
             old_k = mdn_params[-1]
             old_w = mdn_params[-2].unsqueeze(1)
@@ -181,8 +183,49 @@ class ConGenModel(LightningModule):
 
         return mdn_params, hidden1, hidden2, loss
 
-    #def initHidden(self):
-    #    return torch.zeros(self.n_layers * self.bi, self.batch_size, self.hidden_size)
+    def sample(self, inp, char_vec, old_k, old_w, text_len, hidden1, hidden2, bias=0):
+        if len(inp.size()) == 2:
+            inp = inp.unsqueeze(1)
+
+        embed = torch.cat([inp, old_w], dim=-1)  # adding attention window to the input of rnn
+
+        output1, hidden1 = self.rnn1(embed, hidden1)
+        if self.bi_mode == 1:
+            output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
+
+            ##### implementing Eqn. 48 - 51 of the paper ###########
+        abk_t = self.window(output1.squeeze(1)).exp()
+        a_t, b_t, k_t = abk_t.split(self.num_attn_gaussian, dim=1)
+        k_t = old_k + k_t
+        #######################################################
+
+        ##### implementing Eqn. 46 and 47 of the paper ###########
+        u = torch.linspace(1, char_vec.shape[1], char_vec.shape[1])
+        phi_bku = torch.exp(torch.mul(torch.sub(k_t.unsqueeze(2).repeat((1, 1, len(u))), u) ** 2,
+                                      -b_t.unsqueeze(2)))
+        phi = torch.sum(torch.mul(a_t.unsqueeze(2), phi_bku), dim=1) * (char_vec.shape[1] / text_len)
+        win_t = torch.sum(torch.mul(phi.unsqueeze(2), char_vec), dim=1)
+        ##########################################################
+
+        inp_skip = torch.cat([output1, inp, win_t.unsqueeze(1)], dim=-1)  # implementing skip connection
+        output2, hidden2 = self.rnn2(inp_skip, hidden2)
+        if self.bi_mode == 1:
+            output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
+        output = torch.cat([output1, output2], dim=-1)
+
+        ##### implementing Eqn. 17 to 22 of the paper ###########
+        y_t = self.mdn(output.squeeze(1))
+
+        e_t = y_t[:, 0:1]
+        pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t = torch.split(y_t[:, 1:], self.num_gaussian, dim=1)
+        e_t = torch.sigmoid(e_t)
+        pi_t = torch.softmax(pi_t * (1 + bias), dim=-1)  # bias would be used during inference
+        s1_t, s2_t = torch.exp(s1_t), torch.exp(s2_t)
+        rho_t = torch.tanh(rho_t)
+        ##########################################################
+
+        mdn_params = [e_t, pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t, phi, win_t, k_t]
+        return mdn_params, hidden1, hidden2
 
     def initLHidden(self, batch_size, device):
         return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device),
