@@ -60,7 +60,7 @@ def sample_congen(lr_model,
 
     phis, win = [], []
     count = 0
-    #stop = False
+    stop = False
 
     mixture_params = []
     hidden1 = (torch.zeros(bi, 1, hidden_size), torch.zeros(bi, 1, hidden_size))
@@ -105,13 +105,10 @@ def sample_congen(lr_model,
         old_phi = mdn_params[-3].squeeze(0)
         old_phi = old_phi.data.cpu().numpy()
 
-        # if count >= 40 and np.max(old_phi) == old_phi[-1]:
-        #     stop = True
-        #     #break
-        # else:
-        #     count += 1
-
-        count += 1
+        if count >= 40 and np.max(old_phi) == old_phi[-1]:
+            stop = True
+        else:
+            count += 1
 
     phis = torch.stack(phis).data.cpu().numpy().T
     win = torch.stack(win).data.cpu().numpy().T
