@@ -261,7 +261,7 @@ class ConGenModel(LightningModule):
         for key in metrics:
             self.log(key + '_' + type, metrics[key], on_step=on_step, on_epoch=True, logger=True)
 
-    def on_train_epoch_start(self):
+    def on_train_epoch_end(self):
         char_list = ' ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,."\'?-!'
         char_to_code = {}
         c = 0
@@ -274,9 +274,9 @@ class ConGenModel(LightningModule):
             strokes, mix_params, phi, win = sample_congen(model, "testing congen", char_to_code, self.hidden_size)
             fig = plot_stroke(strokes, return_fig=True)
             buf = io.BytesIO()
-            fig.savefig(buf, dpi=500)
+            fig.savefig(buf)
             buf.seek(0)
             img = Image.open(buf)
             plt.close(fig)
             img_tensor = torchvision.transforms.ToTensor()(img)
-            self.logger.experiment.add_image(f'training_progress/sample', img_tensor, self.global_step)
+            self.logger.experiment.add_image(f'cond_viz/sample', img_tensor, self.global_step)
