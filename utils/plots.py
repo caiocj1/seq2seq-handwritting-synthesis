@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_stroke(stroke, save_name=None):
+
+def plot_stroke(stroke, save_name=None, return_fig=False):
     # Plot a single example.
     f, ax = plt.subplots()
 
@@ -25,7 +26,10 @@ def plot_stroke(stroke, save_name=None):
     ax.axes.get_yaxis().set_visible(False)
 
     if save_name is None:
-        plt.show()
+        if return_fig is False:
+            plt.show()
+        else:
+            return f
     else:
         try:
             plt.savefig(
