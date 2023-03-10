@@ -259,7 +259,7 @@ class ConGenModel(LightningModule):
         for key in metrics:
             self.log(key + '_' + type, metrics[key], on_step=on_step, on_epoch=True, logger=True)
 
-    def on_train_epoch_end(self):
+    def on_train_epoch_start(self):
         char_list = ' ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,."\'?-!'
         char_to_code = {}
         c = 0
@@ -268,7 +268,7 @@ class ConGenModel(LightningModule):
             c += 1
 
         with torch.no_grad():
-            strokes, mix_params, phi, win = sample_congen(self, "testing congen", char_to_code, self.hidden_size)
+            strokes, mix_params, phi, win = sample_congen(self.to("cpu"), "testing congen", char_to_code, self.hidden_size)
             fig = plot_stroke(strokes, return_fig=True)
             buf = io.BytesIO()
             fig.savefig(buf, dpi=500)
