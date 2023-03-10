@@ -1,3 +1,5 @@
+import copy
+
 import torch.optim
 from pytorch_lightning import LightningModule
 import torch.nn as nn
@@ -268,7 +270,8 @@ class ConGenModel(LightningModule):
             c += 1
 
         with torch.no_grad():
-            strokes, mix_params, phi, win = sample_congen(self.to("cpu"), "testing congen", char_to_code, self.hidden_size)
+            model = copy.deepcopy(self).to("cpu")
+            strokes, mix_params, phi, win = sample_congen(model, "testing congen", char_to_code, self.hidden_size)
             fig = plot_stroke(strokes, return_fig=True)
             buf = io.BytesIO()
             fig.savefig(buf, dpi=500)
