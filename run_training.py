@@ -28,9 +28,9 @@ if __name__ == '__main__':
 
     # Initialize data module
     data_module = HandwrittingDataModule(
-        batch_size=100,
-        num_workers=8,
-        max_samples=None
+        batch_size=training_params['batch_size'],
+        num_workers=training_params['num_workers'],
+        max_samples=training_params['max_samples']
     )
     data_module.setup(stage='fit')
 

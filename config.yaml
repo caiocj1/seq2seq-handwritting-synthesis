@@ -16,3 +16,6 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
+  batch_size: 16
+  num_workers: 8
+  max_samples: None
