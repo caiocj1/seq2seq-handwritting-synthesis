@@ -3,6 +3,7 @@ import os
 import yaml
 
 from models.congen_model import ConGenModel
+from models.uncond_model import UncondModel
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -15,7 +16,7 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-    parser.add_argument('--model', '-m', default='RNN')
+    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond"])
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
@@ -36,8 +37,10 @@ if __name__ == '__main__':
 
     # Initialize new model and setup data module
     model = None
-    if args.model == 'RNN':
+    if args.model == 'cond':
         model = ConGenModel()
+    elif args.model == "uncond":
+        model = UncondModel()
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
@@ -59,5 +62,6 @@ if __name__ == '__main__':
                       num_sanity_val_steps=0,
                       limit_val_batches=0.0,
                       callbacks=[model_ckpt, lr_monitor],
-                      logger=logger)
+                      logger=logger,
+                      gradient_clip_val=training_params["clip"])
     trainer.fit(model, data_module)

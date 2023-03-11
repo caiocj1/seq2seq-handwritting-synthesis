@@ -28,8 +28,10 @@ class HandwrittingDataModule(LightningDataModule):
     def __init__(self,
             batch_size: int = 32,
             num_workers: int = 0,
-            max_samples: int = None):
+            model: str = None):
         super().__init__()
+
+        self.model = model
 
         # Save hyperparemeters
         self.save_hyperparameters(logger=False)
@@ -48,7 +50,7 @@ class HandwrittingDataModule(LightningDataModule):
         dataset_params = params["DatasetParams"]
 
         self.min_seq = dataset_params["min_seq"]
-        self.max_seq = dataset_params["max_seq"]
+        self.max_seq = dataset_params["max_seq"] if self.model == "cond" else dataset_params["max_seq_uncond"]
         self.max_text_len = dataset_params["max_text_len"]
 
     def setup(self, stage: str = None):
@@ -77,7 +79,7 @@ class HandwrittingDataModule(LightningDataModule):
         return DataLoader(dataset=self.data_train,
                           batch_size=self.hparams.batch_size,
                           num_workers=self.hparams.num_workers,
-                          collate_fn=self.get_strokes_text,
+                          collate_fn=self.collate_fn(self.model),
                           shuffle=True)
 
     def val_dataloader(self):
@@ -89,7 +91,7 @@ class HandwrittingDataModule(LightningDataModule):
         return DataLoader(dataset=self.data_val,
                          batch_size=self.hparams.batch_size,
                          num_workers=self.hparams.num_workers,
-                         collate_fn=self.get_strokes_text,
+                         collate_fn=self.collate_fn(self.model),
                          shuffle=False)
 
     def predict_dataloader(self):
@@ -102,6 +104,52 @@ class HandwrittingDataModule(LightningDataModule):
                           batch_size=self.hparams.batch_size,
                           num_workers=self.hparams.num_workers,
                           shuffle=False)
+
+    def collate_fn(self, model):
+        if model == "cond":
+            return self.get_strokes_text
+        elif model == "uncond":
+            return self.get_data_uncond
+
+    def get_data_uncond(self, batch):
+        # ind=0, batch_size=1, max_seq=400
+
+        batch_size = len(batch)
+
+        big_x, big_y = [], []
+        # print ('here')
+
+        for k in range(batch_size):
+            X = batch[k][0]
+            if len(X) < self.max_seq:
+                continue
+            # print 'here'
+            halt = int(len(X) / self.max_seq) + 1
+            # print 'here',len(X),'halt',halt
+            count = 0
+            for j in range(0, len(X), self.max_seq):
+                y = []
+                x = [[0, 0, 0]]
+                if count == halt - 1:
+                    for i in range(len(X) - self.max_seq, len(X)):
+                        y.append(X[i])
+                    y.append(X[i])
+                    x.extend(X[len(X) - self.max_seq:])
+                    big_x.append(x)
+                    big_y.append(y)
+                    continue
+                else:
+                    for i in range(j, min(j + self.max_seq, len(X))):
+                        y.append(X[i])
+                    y.append(X[i])
+                    x.extend(X[j:min(j + self.max_seq, len(X))])
+                    y = np.array(y)
+                    big_x.append(x)
+                    big_y.append(y)
+                count += 1
+        X = torch.tensor(np.array(big_x))
+        y = torch.tensor(np.array(big_y))
+        return X, y
 
     def get_strokes_text(self, batch):
         big_x, big_y, big_text = [], [], []

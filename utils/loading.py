@@ -1,5 +1,6 @@
 import torch
 from models.congen_model import ConGenModel
+from models.uncond_model import UncondModel
 import os
 import yaml
 
@@ -19,5 +20,18 @@ def load_pretrained_congen(ckpt_path):
     hidden_size = model_params["hidden_size"]
 
     lr_model = ConGenModel.load_from_checkpoint(ckpt_path)
+    lr_model.eval()
 
     return lr_model, char_to_code, hidden_size
+
+def load_pretrained_uncond(ckpt_path):
+    config_path = os.path.join(os.getcwd(), 'config.yaml')
+    with open(config_path) as f:
+        params = yaml.load(f, Loader=yaml.SafeLoader)
+    model_params = params["CongenModelParams"]
+    hidden_size = model_params["hidden_size"]
+
+    lr_model = UncondModel.load_from_checkpoint(ckpt_path)
+    lr_model.eval()
+
+    return lr_model, hidden_size
