@@ -1,14 +1,16 @@
 from utils.loading import load_pretrained_congen, load_pretrained_uncond
 from utils.plots import plot_stroke
-from utils.sampling import sample_congen, sample_uncond
+from utils.sampling import sample_congen, sample_uncond, sample_prime
 
 import argparse
+import pdb
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", "-m", choices=["cond", "uncond"], required=True)
+    parser.add_argument("--model", "-m", choices=["cond", "uncond", "primed"], required=True)
     parser.add_argument("--ckpt_path", "-w", default=None)
     parser.add_argument('--text', '-t', default=None)
+    parser.add_argument('--index', '-i', default=None, type=int)
     args = parser.parse_args()
 
     if args.model == "cond":
@@ -23,3 +25,9 @@ if __name__ == '__main__':
         strokes, mix_params = sample_uncond(lr_model, h_size)
 
         plot_stroke(strokes)
+    elif args.model == "primed":
+        lr_model, char_to_vec, h_size = load_pretrained_congen(args.ckpt_path)
+        strokes, mix_params, phi, wind, copy = sample_prime(lr_model, args.text, args.index, char_to_vec, h_size)
+
+        plot_stroke(strokes)
+        plot_stroke(copy)
