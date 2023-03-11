@@ -255,4 +255,4 @@ class UncondModel(LightningModule):
             img = Image.open(buf)
             plt.close(fig)
             img_tensor = torchvision.transforms.ToTensor()(img)
-            self.logger.experiment.add_image(f'cond_viz/sample', img_tensor, self.global_step)
+            self.logger.experiment.add_image(f'uncond_viz/sample', img_tensor, self.global_step)

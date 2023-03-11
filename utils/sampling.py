@@ -163,7 +163,7 @@ def sample_uncond(lr_model, hidden_size, start=[0, 0, 0], rnn_type=2, \
         hidden2 = (torch.zeros(bi, 1, hidden_size), torch.zeros(bi, 1, hidden_size))
 
     for i in range(time_step):
-        mdn_params, hidden1, hidden2 = lr_model(prev_x.unsqueeze(0), hidden1, hidden2)
+        mdn_params, hidden1, hidden2 = lr_model.sample(prev_x.unsqueeze(0), hidden1, hidden2)
         idx = get_pi_id(np.random.random(), mdn_params[1][0])
         eos = 1 if np.random.random() < mdn_params[0][0] else 0
 
