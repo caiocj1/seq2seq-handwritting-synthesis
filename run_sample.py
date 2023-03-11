@@ -1,6 +1,6 @@
-from utils.loading import load_pretrained_congen
+from utils.loading import load_pretrained_congen, load_pretrained_uncond
 from utils.plots import plot_stroke
-from utils.sampling import sample_congen
+from utils.sampling import sample_congen, sample_uncond
 
 import argparse
 
@@ -16,5 +16,10 @@ if __name__ == '__main__':
 
         lr_model, char_to_vec, h_size = load_pretrained_congen(args.ckpt_path)
         strokes, mix_params, phi, win = sample_congen(lr_model, args.text, char_to_vec, h_size)
+
+        plot_stroke(strokes)
+    elif args.model == "uncond":
+        lr_model, h_size = load_pretrained_uncond(args.ckpt_path)
+        strokes, mix_params = sample_uncond(lr_model, h_size)
 
         plot_stroke(strokes)
