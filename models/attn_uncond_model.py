@@ -20,8 +20,8 @@ class Seq2SeqAttention(nn.Module):
     def __init__(self, hidden_size):
         super(Seq2SeqAttention, self).__init__()
 
-        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size // 2)
-        self.ff_score = nn.Linear(hidden_size // 2, 1, bias=False)
+        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size // 10)
+        self.ff_score = nn.Linear(hidden_size // 10, 1, bias=False)
 
     def forward(self, target_h, source_h):
         target_h_rep = target_h.repeat(1, source_h.size(1), 1)
