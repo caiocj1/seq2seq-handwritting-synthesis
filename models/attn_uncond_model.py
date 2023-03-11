@@ -24,15 +24,15 @@ class Seq2SeqAttention(nn.Module):
         self.ff_score = nn.Linear(hidden_size // 10, 1, bias=False)
 
     def forward(self, target_h, source_h):
-        target_h_rep = target_h.repeat(1, source_h.size(1), 1)
-        concat = torch.cat([target_h_rep, source_h], dim=-1)
+        target_h = target_h.repeat(1, source_h.size(1), 1)
+        concat = torch.cat([target_h, source_h], dim=-1)
 
         scores = self.ff_score(torch.tanh(self.ff_concat(concat)))
         norm_scores = torch.softmax(scores, dim=1)
 
         #source_h_perm = source_h.permute((2, 0, 1))  # (seq, batch, feat) -> (feat, seq, batch)
-        weighted_source_hs = (norm_scores * source_h)
-        ct = torch.sum(weighted_source_hs, dim=1, keepdim=True)
+        source_h = (norm_scores * source_h)
+        ct = torch.sum(source_h, dim=1, keepdim=True)
         return ct, norm_scores.squeeze(1)
 
 
