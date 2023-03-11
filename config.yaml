@@ -30,6 +30,6 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
-  batch_size: 100
+  batch_size: 20
   num_workers: 8
   clip: 10.0
