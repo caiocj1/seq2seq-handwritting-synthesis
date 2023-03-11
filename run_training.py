@@ -3,6 +3,7 @@ import os
 import yaml
 
 from models.congen_model import ConGenModel
+from models.uncond_model import UncondModel
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -28,9 +29,9 @@ if __name__ == '__main__':
 
     # Initialize data module
     data_module = HandwrittingDataModule(
-        batch_size=100,
-        num_workers=8,
-        max_samples=None
+        batch_size=training_params["batch_size"],
+        num_workers=training_params["num_workers"],
+        model=args.model
     )
     data_module.setup(stage='fit')
 
@@ -38,6 +39,8 @@ if __name__ == '__main__':
     model = None
     if args.model == 'cond':
         model = ConGenModel()
+    elif args.model == "uncond":
+        model = UncondModel()
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
