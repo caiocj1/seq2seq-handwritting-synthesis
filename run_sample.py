@@ -9,6 +9,7 @@ if __name__ == '__main__':
     parser.add_argument("--model", "-m", choices=["cond", "uncond"], required=True)
     parser.add_argument("--ckpt_path", "-w", default=None)
     parser.add_argument('--text', '-t', default=None)
+    parser.add_argument("--index", "-i", help="Index of dataset to base calligraphy on, for primed sampling.", default=None)
     args = parser.parse_args()
 
     if args.model == "cond":

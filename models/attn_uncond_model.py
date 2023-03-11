@@ -15,10 +15,30 @@ import torchvision
 from utils.sampling import sample_uncond
 from utils.plots import plot_stroke
 
-class UncondModel(LightningModule):
 
+class Seq2SeqAttention(nn.Module):
+    def __init__(self, hidden_size):
+        super(Seq2SeqAttention, self).__init__()
+
+        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size)
+        self.ff_score = nn.Linear(hidden_size, 1, bias=False)
+
+    def forward(self, target_h, source_h):
+        target_h_rep = target_h.repeat(1, source_h.size(1), 1)
+        concat = torch.cat([target_h_rep, source_h], dim=-1)
+
+        scores = self.ff_score(torch.tanh(self.ff_concat(concat)))
+        norm_scores = torch.softmax(scores, dim=1)
+
+        #source_h_perm = source_h.permute((2, 0, 1))  # (seq, batch, feat) -> (feat, seq, batch)
+        weighted_source_hs = (norm_scores * source_h)
+        ct = torch.sum(weighted_source_hs, dim=1, keepdim=True)
+        return ct, norm_scores.squeeze(1)
+
+
+class AttentionUncondModel(LightningModule):
     def __init__(self):
-        super(UncondModel, self).__init__()
+        super(AttentionUncondModel, self).__init__()
 
         # Read config file if needed
         self.read_config()
@@ -43,7 +63,9 @@ class UncondModel(LightningModule):
                             batch_first=True,
                             bidirectional=True)
 
-        self.mdn = nn.Linear(self.hidden_size * 2 * self.bi_mode, self.num_gaussian * 6 + 1)
+        self.attn = Seq2SeqAttention(2 * self.hidden_size)
+
+        self.mdn = nn.Linear(self.hidden_size * 3 * self.bi_mode, self.num_gaussian * 6 + 1)
 
     def read_config(self):
         """
@@ -128,17 +150,20 @@ class UncondModel(LightningModule):
 
         mdn_params = None
         loss = 0
+
+        with torch.no_grad():
+            output_all, hidden_all = self.rnn1(input_tensor.float(), hidden1)
+
         for stroke in range(self.max_seq):
-            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2)
+            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2, output_all)
             out_sample = target_tensor[:, stroke, :]
 
             loss += self.mdn_loss(mdn_params, out_sample)
-
         loss = loss/self.max_seq
 
         return mdn_params, hidden1, hidden2, loss
 
-    def sample(self, inp, hidden1, hidden2):
+    def sample(self, inp, hidden1, hidden2, output_all):
         if len(inp.size()) == 2:
             embed = inp.unsqueeze(1)
         else:
@@ -148,12 +173,15 @@ class UncondModel(LightningModule):
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
 
-        inp_skip = torch.cat([output1, embed], dim=-1)  # implementing skip connection
+        inp_skip = torch.cat([output1, embed], dim=-1)
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
 
-        output = torch.cat([output1, output2], dim=-1)
+        src_context, scores = self.attn(output2, output_all)
+        output2_tilde = torch.cat([output2, src_context], dim=-1)
+
+        output = torch.cat([output1, output2_tilde], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
         y_t = self.mdn(output.squeeze(1))
@@ -174,7 +202,6 @@ class UncondModel(LightningModule):
                 torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device))
 
     def mdn_loss(self, mdn_params, data, mask=[]):
-
         def get_2d_normal(x1, x2, mu1, mu2, s1, s2, rho):
             ##### implementing Eqn. 24 and 25 of the paper ###########
             norm1 = torch.sub(x1.view(-1, 1), mu1)

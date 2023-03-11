@@ -4,6 +4,7 @@ import yaml
 
 from models.congen_model import ConGenModel
 from models.uncond_model import UncondModel
+from models.attn_uncond_model import AttentionUncondModel
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -16,7 +17,7 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond"])
+    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond", "attn_uncond"])
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
@@ -41,6 +42,8 @@ if __name__ == '__main__':
         model = ConGenModel()
     elif args.model == "uncond":
         model = UncondModel()
+    elif args.model == "attn_uncond":
+        model = AttentionUncondModel()
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
