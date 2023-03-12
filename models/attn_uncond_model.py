@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import torchvision
 
-from utils.sampling import sample_uncond
+from utils.sampling import sample_uncond_attn
 from utils.plots import plot_stroke
 
 
@@ -276,7 +276,7 @@ class AttentionUncondModel(LightningModule):
     def on_train_epoch_end(self):
         with torch.no_grad():
             model = copy.deepcopy(self).to("cpu")
-            strokes, mix_params = sample_uncond(model, self.hidden_size)
+            strokes, mix_params = sample_uncond_attn(model, self.hidden_size)
             fig = plot_stroke(strokes, return_fig=True)
             buf = io.BytesIO()
             fig.savefig(buf)
