@@ -150,16 +150,16 @@ class AttentionUncondModel(LightningModule):
 
         mdn_params = None
         hidden1_list = [hidden1]
-        hidden2_list = [hidden2]
+        #hidden2_list = [hidden2]
         loss = 0
         for stroke in range(self.max_seq):
             mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :],
                                                        hidden1,
                                                        hidden2,
                                                        hidden1_list,
-                                                       hidden2_list)
+                                                       None)
             hidden1_list.append(hidden1)
-            hidden2_list.append(hidden2)
+            #hidden2_list.append(hidden2)
             out_sample = target_tensor[:, stroke, :]
 
             loss += self.mdn_loss(mdn_params, out_sample)
