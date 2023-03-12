@@ -159,7 +159,7 @@ class AttentionUncondModel(LightningModule):
                                                        hidden1_list,
                                                        None)
             hidden1_list.append(hidden1[0])
-            if len(hidden1_list) > 30:
+            if len(hidden1_list) > 15:
                 hidden1_list.pop(0)
             #hidden2_list.append(hidden2)
             out_sample = target_tensor[:, stroke, :]
