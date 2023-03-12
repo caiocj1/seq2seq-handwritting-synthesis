@@ -181,16 +181,16 @@ class AttentionUncondModel(LightningModule):
 
         hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
         y1, A1 = self.self_attn(hidden_seq1)
-        output1 += y1.sum(1, keepdim=True)
+        output1_til = output1 + y1.sum(1, keepdim=True)
 
-        inp_skip = torch.cat([output1, embed], dim=-1)
+        inp_skip = torch.cat([output1_til, embed], dim=-1)
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
 
         #hiddens = torch.cat[hidden[0][-1] for hidden in hidden1_list]
 
-        output = torch.cat([output1, output2], dim=-1)
+        output = torch.cat([output1_til, output2], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
         y_t = self.mdn(output.squeeze(1))
