@@ -16,24 +16,24 @@ from utils.sampling import sample_uncond
 from utils.plots import plot_stroke
 
 
-class Seq2SeqAttention(nn.Module):
+class SelfAttention(nn.Module):
     def __init__(self, hidden_size):
-        super(Seq2SeqAttention, self).__init__()
+        super(SelfAttention, self).__init__()
 
-        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size // 2)
-        self.ff_score = nn.Linear(hidden_size // 2, 1, bias=False)
+        self.query = nn.Linear(hidden_size, 100, bias=False)
+        self.key = nn.Linear(hidden_size, 100, bias=False)
+        self.value = nn.Linear(hidden_size, 2 * hidden_size, bias=False)
 
-    def forward(self, target_h, source_h):
-        target_h = target_h.repeat(1, source_h.size(1), 1)
-        concat = torch.cat([target_h, source_h], dim=-1)
+    def forward(self, sequence):
+        Q = self.query(sequence)
+        K = self.key(sequence)
+        V = self.value(sequence)
 
-        scores = self.ff_score(torch.tanh(self.ff_concat(concat)))
-        norm_scores = torch.softmax(scores, dim=1)
+        A = torch.einsum('btk,bsk->bst', Q, K)
+        A = torch.softmax(A, dim=-1)
+        y = A @ V
 
-        #source_h_perm = source_h.permute((2, 0, 1))  # (seq, batch, feat) -> (feat, seq, batch)
-        source_h = (norm_scores * source_h)
-        ct = torch.sum(source_h, dim=1, keepdim=True)
-        return ct, norm_scores.squeeze(1)
+        return y, A
 
 
 class AttentionUncondModel(LightningModule):
@@ -63,9 +63,9 @@ class AttentionUncondModel(LightningModule):
                             batch_first=True,
                             bidirectional=True)
 
-        self.attn = Seq2SeqAttention(2 * self.hidden_size)
+        self.self_attn = SelfAttention(self.hidden_size)
 
-        self.mdn = nn.Linear(self.hidden_size * 3 * self.bi_mode, self.num_gaussian * 6 + 1)
+        self.mdn = nn.Linear(self.hidden_size * 2 * self.bi_mode, self.num_gaussian * 6 + 1)
 
     def read_config(self):
         """
@@ -149,9 +149,17 @@ class AttentionUncondModel(LightningModule):
         hidden2 = self.initLHidden(batch_size, device)
 
         mdn_params = None
+        hidden1_list = [hidden1]
+        hidden2_list = [hidden2]
         loss = 0
         for stroke in range(self.max_seq):
-            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2)
+            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :],
+                                                       hidden1,
+                                                       hidden2,
+                                                       hidden1_list,
+                                                       hidden2_list)
+            hidden1_list.append(hidden1)
+            hidden2_list.append(hidden2)
             out_sample = target_tensor[:, stroke, :]
 
             loss += self.mdn_loss(mdn_params, out_sample)
@@ -159,7 +167,7 @@ class AttentionUncondModel(LightningModule):
 
         return mdn_params, hidden1, hidden2, loss
 
-    def sample(self, inp, hidden1, hidden2):
+    def sample(self, inp, hidden1, hidden2, hidden1_list, hidden2_list):
         if len(inp.size()) == 2:
             embed = inp.unsqueeze(1)
         else:
@@ -169,15 +177,18 @@ class AttentionUncondModel(LightningModule):
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
 
+        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
+        y1, A1 = self.self_attn(hidden_seq1)
+        output1 += y1.sum(1, keepdim=True)
+
         inp_skip = torch.cat([output1, embed], dim=-1)
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
 
-        src_context, scores = self.attn(output2, output2)
-        output2_tilde = torch.cat([output2, src_context], dim=-1)
+        #hiddens = torch.cat[hidden[0][-1] for hidden in hidden1_list]
 
-        output = torch.cat([output1, output2_tilde], dim=-1)
+        output = torch.cat([output1, output2], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
         y_t = self.mdn(output.squeeze(1))
