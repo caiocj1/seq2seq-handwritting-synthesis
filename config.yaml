@@ -14,6 +14,8 @@ UncondModelParams:
   bi_mode: 2
   bias: 0
 
+# TODO: add UncondModelAttentionParams
+
 CongenModelParams:
   input_size: 3
   hidden_size: 400
@@ -27,6 +29,6 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
-  batch_size: 16
-  num_workers: 8
-  max_samples: None
+  batch_size: 12
+  num_workers: 0
+  clip: 10.0
