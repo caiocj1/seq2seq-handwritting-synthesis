@@ -152,7 +152,7 @@ class AttentionUncondModel(LightningModule):
         loss = 0
 
         with torch.no_grad():
-            output_all, hidden_all = self.rnn1(input_tensor.float(), hidden1)
+            output_all = self.rnn1(input_tensor.float(), hidden1)[0]
 
         for stroke in range(self.max_seq):
             mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2, output_all)
