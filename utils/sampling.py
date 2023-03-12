@@ -295,3 +295,69 @@ def sample_prime(lr_model, text, chosen_writing_idx, char_to_vec, hidden_size, t
     
     return strokes[:count+scale,:], mix_params[:count+scale,:],\
              phis[:,:count+scale], win.squeeze(1)[:,:count+scale], start_stroke
+
+def sample_uncond_attn(lr_model, hidden_size, start=[0, 0, 0], rnn_type=2, \
+                  time_step=600, scale=20, bi_dir=True, random_state=98):
+    np.random.seed(random_state)
+
+    def get_pi_id(x, dist):
+        # implementing the cumulative index retrieval
+        N = dist.shape[0]
+        accumulate = 0
+        for i in range(0, N):
+            accumulate += dist[i]
+            if (accumulate >= x):
+                return i
+        return -1
+
+    def sample_gaussian_2d(mu1, mu2, s1, s2, rho):
+        mean = [mu1, mu2]
+        cov = [[s1 * s1, rho * s1 * s2], [rho * s1 * s2, s2 * s2]]
+        x = np.random.multivariate_normal(mean, cov, 1)
+        return x[0][0], x[0][1]
+
+    if bi_dir == True:
+        bi = 2
+    else:
+        bi = 1
+
+    prev_x = torch.tensor(start, dtype=torch.float)
+    prev_x[0] = 1
+    strokes = np.zeros((time_step, 3), dtype=np.float32)
+    mixture_params = []
+    if rnn_type == 1:
+        hidden1 = torch.zeros(bi, 1, hidden_size)
+        hidden2 = torch.zeros(bi, 1, hidden_size)
+    else:
+        hidden1 = (torch.zeros(bi, 1, hidden_size), torch.zeros(bi, 1, hidden_size))
+        hidden2 = (torch.zeros(bi, 1, hidden_size), torch.zeros(bi, 1, hidden_size))
+
+    hidden1_list = [hidden1]
+    for i in range(time_step):
+        mdn_params, hidden1, hidden2 = lr_model.sample(prev_x.unsqueeze(0), hidden1, hidden2, hidden1_list, None)
+        hidden1_list.append(hidden1)
+        if len(hidden1_list) > 15:
+            hidden1_list.pop(0)
+        idx = get_pi_id(np.random.random(), mdn_params[1][0])
+        eos = 1 if np.random.random() < mdn_params[0][0] else 0
+
+        next_x1, next_x2 = sample_gaussian_2d(mdn_params[2][0][idx].detach().cpu().numpy(),
+                                              mdn_params[3][0][idx].detach().cpu().numpy(),
+                                              mdn_params[4][0][idx].detach().cpu().numpy(),
+                                              mdn_params[5][0][idx].detach().cpu().numpy(),
+                                              mdn_params[6][0][idx].detach().cpu().numpy())
+
+        mixture_params.append([float(mdn_params[2][0][idx].detach().cpu()),
+                               float(mdn_params[3][0][idx].detach().cpu()),
+                               float(mdn_params[4][0][idx].detach().cpu()),
+                               float(mdn_params[5][0][idx].detach().cpu()),
+                               float(mdn_params[6][0][idx].detach().cpu()), eos])
+
+        strokes[i, :] = [eos, next_x1, next_x2]
+        # prev_x = np.zeros((1, 1, 3), dtype=np.float32)
+        prev_x[0], prev_x[1], prev_x[2] = eos, next_x1, next_x2
+
+    strokes[:, 1:3] *= scale
+    mix_params = np.array(mixture_params)
+    mix_params[:, :2] = np.cumsum(mix_params[:, :2], axis=0)
+    return strokes, mix_params

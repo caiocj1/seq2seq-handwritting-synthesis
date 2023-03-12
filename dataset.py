@@ -50,7 +50,10 @@ class HandwrittingDataModule(LightningDataModule):
         dataset_params = params["DatasetParams"]
 
         self.min_seq = dataset_params["min_seq"]
-        self.max_seq = dataset_params["max_seq"] if self.model == "cond" else dataset_params["max_seq_uncond"]
+        if self.model == "cond":
+            self.max_seq = dataset_params["max_seq"]
+        else:
+            self.max_seq = dataset_params["max_seq_uncond"]
         self.max_text_len = dataset_params["max_text_len"]
 
     def setup(self, stage: str = None):
@@ -108,7 +111,7 @@ class HandwrittingDataModule(LightningDataModule):
     def collate_fn(self, model):
         if model == "cond":
             return self.get_strokes_text
-        elif model == "uncond":
+        elif model == "uncond" or model == "attn_uncond":
             return self.get_data_uncond
 
     def get_data_uncond(self, batch):
