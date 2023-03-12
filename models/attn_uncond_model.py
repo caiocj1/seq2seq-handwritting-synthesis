@@ -184,8 +184,8 @@ class AttentionUncondModel(LightningModule):
         y1, A1 = self.self_attn(hidden_seq1)
 
         #output1_til = output1 + y1[:, -1:]
-        #output1_til = output1 + y1.sum(1, keepdim=True)
-        output1_til = y1[:, -1:]
+        output1_til = output1 + y1.sum(1, keepdim=True)
+        #output1_til = y1[:, -1:]
 
         inp_skip = torch.cat([output1_til, embed], dim=-1)
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
