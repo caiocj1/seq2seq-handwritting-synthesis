@@ -149,7 +149,7 @@ class AttentionUncondModel(LightningModule):
         hidden2 = self.initLHidden(batch_size, device)
 
         mdn_params = None
-        hidden1_list = [hidden1]
+        hidden1_list = [hidden1[0]]
         #hidden2_list = [hidden2]
         loss = 0
         for stroke in range(self.max_seq):
@@ -158,8 +158,8 @@ class AttentionUncondModel(LightningModule):
                                                        hidden2,
                                                        hidden1_list,
                                                        None)
-            hidden1_list.append(hidden1)
-            if len(hidden1_list) > 15:
+            hidden1_list.append(hidden1[0])
+            if len(hidden1_list) > 50:
                 hidden1_list.pop(0)
             #hidden2_list.append(hidden2)
             out_sample = target_tensor[:, stroke, :]
@@ -179,7 +179,7 @@ class AttentionUncondModel(LightningModule):
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
 
-        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
+        hidden_seq1 = torch.cat([hidden[-1][None] for hidden in hidden1_list] + [hidden1[0]], dim=0).permute((1, 0, 2))
         y1, A1 = self.self_attn(hidden_seq1)
         output1_til = output1 + y1[:, -1:]
 
