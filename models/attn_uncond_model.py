@@ -20,8 +20,8 @@ class Seq2SeqAttention(nn.Module):
     def __init__(self, hidden_size):
         super(Seq2SeqAttention, self).__init__()
 
-        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size // 10)
-        self.ff_score = nn.Linear(hidden_size // 10, 1, bias=False)
+        self.ff_concat = nn.Linear(2 * hidden_size, hidden_size // 2)
+        self.ff_score = nn.Linear(hidden_size // 2, 1, bias=False)
 
     def forward(self, target_h, source_h):
         target_h = target_h.repeat(1, source_h.size(1), 1)
@@ -150,12 +150,8 @@ class AttentionUncondModel(LightningModule):
 
         mdn_params = None
         loss = 0
-
-        with torch.no_grad():
-            output_all = self.rnn1(input_tensor.float(), hidden1)[0]
-
         for stroke in range(self.max_seq):
-            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2, output_all)
+            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :], hidden1, hidden2)
             out_sample = target_tensor[:, stroke, :]
 
             loss += self.mdn_loss(mdn_params, out_sample)
@@ -163,7 +159,7 @@ class AttentionUncondModel(LightningModule):
 
         return mdn_params, hidden1, hidden2, loss
 
-    def sample(self, inp, hidden1, hidden2, output_all):
+    def sample(self, inp, hidden1, hidden2):
         if len(inp.size()) == 2:
             embed = inp.unsqueeze(1)
         else:
@@ -178,7 +174,7 @@ class AttentionUncondModel(LightningModule):
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
 
-        src_context, scores = self.attn(output2, output_all)
+        src_context, scores = self.attn(output2, output2)
         output2_tilde = torch.cat([output2, src_context], dim=-1)
 
         output = torch.cat([output1, output2_tilde], dim=-1)
