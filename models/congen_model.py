@@ -159,7 +159,7 @@ class ConGenModel(LightningModule):
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
 
-            ##### implementing Eqn. 48 - 51 of the paper ###########
+        ##### implementing Eqn. 48 - 51 of the paper ###########
         abk_t = self.window(output1.squeeze(1)).exp()
         a_t, b_t, k_t = abk_t.split(self.num_attn_gaussian, dim=1)
         k_t = old_k + k_t
