@@ -52,7 +52,7 @@ class ConGenModel(LightningModule):
         :return: None
         """
         config_path = os.path.join(os.getcwd(), './config.yaml')
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             params = yaml.load(f, Loader=SafeLoader)
         model_params = params["CongenModelParams"]
         dataset_params = params["DatasetParams"]

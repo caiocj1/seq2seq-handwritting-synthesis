@@ -7,13 +7,15 @@ from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
 
+import pdb
+
 
 class StrokeDataset(Dataset):
     def __init__(self):
         super(StrokeDataset, self).__init__()
 
         self.strokes = np.load('./data/strokes.npy', allow_pickle=True, encoding='latin1')
-        with open('./data/sentences.txt') as f:
+        with open('./data/sentences.txt', 'r') as f:
             self.texts = f.readlines()
         self.texts = [a.split('\n')[0] for a in self.texts]
 
@@ -45,7 +47,7 @@ class HandwrittingDataModule(LightningDataModule):
         :return: None
         """
         config_path = os.path.join(os.getcwd(), 'config.yaml')
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             params = yaml.load(f, Loader=SafeLoader)
         dataset_params = params["DatasetParams"]
 

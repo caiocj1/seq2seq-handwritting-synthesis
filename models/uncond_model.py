@@ -51,7 +51,7 @@ class UncondModel(LightningModule):
         :return: None
         """
         config_path = os.path.join(os.getcwd(), './config.yaml')
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             params = yaml.load(f, Loader=SafeLoader)
         model_params = params["UncondModelParams"]
         dataset_params = params["DatasetParams"]
@@ -238,13 +238,6 @@ class UncondModel(LightningModule):
             self.log(key + '_' + type, metrics[key], on_step=on_step, on_epoch=True, logger=True)
 
     def on_train_epoch_end(self):
-        char_list = ' ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,."\'?-!'
-        char_to_code = {}
-        c = 0
-        for ch in char_list:
-            char_to_code[ch] = c
-            c += 1
-
         with torch.no_grad():
             model = copy.deepcopy(self).to("cpu")
             strokes, mix_params = sample_uncond(model, self.hidden_size)

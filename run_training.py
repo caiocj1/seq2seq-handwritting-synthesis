@@ -4,6 +4,8 @@ import yaml
 
 from models.congen_model import ConGenModel
 from models.uncond_model import UncondModel
+from models.attn_uncond_model import AttentionUncondModel
+from models.attn_congen_model import AttnConGenModel
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -12,18 +14,20 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
 
+import pdb
+
 if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond"])
+    parser.add_argument('--model', '-m', default='attn_uncond', choices=["cond", "uncond", "attn_uncond"])
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
 
     # Read config file
     config_path = os.path.join(os.getcwd(), 'config.yaml')
-    with open(config_path) as f:
+    with open(config_path, 'r') as f:
         params = yaml.load(f, Loader=yaml.SafeLoader)
     training_params = params['TrainingParams']
 
@@ -41,6 +45,10 @@ if __name__ == '__main__':
         model = ConGenModel()
     elif args.model == "uncond":
         model = UncondModel()
+    elif args.model == "attn_uncond":
+        model = AttentionUncondModel()
+    elif args.model == "attn_cond":
+        model = AttnConGenModel()
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
@@ -56,7 +64,7 @@ if __name__ == '__main__':
     lr_monitor = LearningRateMonitor()
 
     # Trainer
-    trainer = Trainer(accelerator='auto',
+    trainer = Trainer(accelerator='gpu',
                       devices=1 if torch.cuda.is_available() else None,
                       max_epochs=60,
                       num_sanity_val_steps=0,
@@ -64,4 +72,5 @@ if __name__ == '__main__':
                       callbacks=[model_ckpt, lr_monitor],
                       logger=logger,
                       gradient_clip_val=training_params["clip"])
+    
     trainer.fit(model, data_module)

@@ -4,6 +4,9 @@ DatasetParams:
   max_seq_uncond: 400
   max_text_len: 40
 
+AttentionMechParams:
+
+
 UncondModelParams:
   input_size: 3
   hidden_size: 400
@@ -27,6 +30,6 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
-  batch_size: 100
-  num_workers: 8
+  batch_size: 12
+  num_workers: 0
   clip: 10.0

@@ -14,7 +14,7 @@ def load_pretrained_congen(ckpt_path):
         c += 1
 
     config_path = os.path.join(os.getcwd(), 'config.yaml')
-    with open(config_path) as f:
+    with open(config_path, 'r') as f:
         params = yaml.load(f, Loader=yaml.SafeLoader)
     model_params = params["CongenModelParams"]
     hidden_size = model_params["hidden_size"]
@@ -26,7 +26,7 @@ def load_pretrained_congen(ckpt_path):
 
 def load_pretrained_uncond(ckpt_path):
     config_path = os.path.join(os.getcwd(), 'config.yaml')
-    with open(config_path) as f:
+    with open(config_path, 'r') as f:
         params = yaml.load(f, Loader=yaml.SafeLoader)
     model_params = params["CongenModelParams"]
     hidden_size = model_params["hidden_size"]
