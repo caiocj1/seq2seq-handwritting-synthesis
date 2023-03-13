@@ -13,7 +13,7 @@ from PIL import Image
 import torchvision
 
 from utils.sampling import sample_uncond_attn
-from utils.plots import plot_stroke
+from utils.plots import plot_stroke, plot_stroke_attentions
 
 # CHANGING HIDDEN LIST
 
@@ -192,7 +192,7 @@ class UncondModelAttention(LightningModule):
         # implementing attention
         # source_context = self.att_mech(target_h, hidden_seq1)
         source_context = self.att_mech(output1, hidden_seq1)
-        attn_weights = list(source_context[1])    # may be useful for visualization
+        attn_weights = source_context[1]    # may be useful for visualization
         source_context =  source_context[0] # (batch, 1, feat)  **** check
 
         # tilde_h1 = tanh(W_c[c_t;h_t]) - Luong et Al
@@ -298,7 +298,8 @@ class UncondModelAttention(LightningModule):
             model = copy.deepcopy(self).to("cpu")
             strokes, mix_params, attn_weights = sample_uncond_attn(model, self.hidden_size)
             print("final attention weights:", attn_weights)
-            fig = plot_stroke(strokes, return_fig=True)
+            # fig = plot_stroke(strokes, return_fig=True)
+            fig = plot_stroke_attentions(strokes, attn_weights[0], return_fig=True)
             buf = io.BytesIO()
             fig.savefig(buf)
             buf.seek(0)
