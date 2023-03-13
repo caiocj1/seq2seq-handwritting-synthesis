@@ -12,13 +12,15 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import torchvision
 
-from utils.sampling import sample_uncond
+from utils.sampling import sample_uncond_attn
 from utils.plots import plot_stroke
+
+# CHANGING HIDDEN LIST
 
 class seq2seqAtt(nn.Module):
     '''
-    concat global attention a la Luong et al. 2015 (subsection 3.1)
-    https://arxiv.org/pdf/1508.04025.pdf
+    concat global attention a la Luong et al. 2015 (subsection 3.1): https://arxiv.org/pdf/1508.04025.pdf
+    here we use the same ideia of their cross-attention mechanism, but for self-attetion with the target being the last hidden state of the RNN
     '''
     def __init__(self, hidden_dim, hidden_dim_s, hidden_dim_t):
         super(seq2seqAtt, self).__init__()
@@ -27,16 +29,18 @@ class seq2seqAtt(nn.Module):
 
     def forward(self, target_h, source_hs):
         """
-        target_h: (batch, seq, feat)
+        target_h: (batch, 1, feat)
         source_hs: (batch, seq, feat)
         implement the score computation part of the concat formulation (see section 3.1. of Luong 2015)
 
         returns contexts (batch, 1, feat) and attention scores (batch, seq)
         """
-        concat_output = torch.concat([source_hs, target_h], axis=2) # should be of shape (batch, seq, 2*feat)
-        scores = self.ff_score(self.ff_concat(concat_output)) # should be of shape (batch, seq, 1)
+        target_h_rep = target_h.repeat(1, source_hs.size(1), 1) # (batch, 1, feat) -> (batch, seq, feat)
+        concat_output = torch.concat([source_hs, target_h_rep], axis=2) # (batch, seq, 2*feat)
+        scores = self.ff_score(self.ff_concat(concat_output)) # (batch, seq, 1)
         scores = scores.squeeze(dim=2) # (batch, seq, 1) -> (batch, seq)
-        norm_scores = torch.softmax(scores, 0) # (batch, seq)
+        # norm_scores = torch.softmax(scores, 0) # (batch, seq)
+        norm_scores = torch.softmax(scores, 1) # (batch, seq)
         source_hs_p = source_hs.permute((2, 0, 1)) # (batch, seq, feat) -> (feat, batch, seq)
         weighted_source_hs = (norm_scores * source_hs_p) # (batch, seq) * (feat, batch, seq) (* checks from right to left that the dimensions match)
         ct = torch.sum(weighted_source_hs.permute((1, 2, 0)), 1, keepdim=True) # (feat, batch, seq) -> (batch, seq, feat) -> (batch, 1, feat); keepdim otherwise sum squeezes
@@ -50,38 +54,25 @@ class UncondModelAttention(LightningModule):
         # Read config file if needed
         self.read_config()
 
-        # Save hyperparameters
-        if self.bi_dir == True:
-            self.bi = 2
-        else:
-            self.bi = 1
-
         self.rnn1 = nn.LSTM(self.input_size,
                             self.hidden_size,
                             self.n_layers,
                             dropout=self.dropout_p,
-                            batch_first=True,
-                            bidirectional=True)
-        
-        if self.bi_dir == True:
-            self.ff_concat = nn.Linear(3*self.hidden_size, self.hidden_size)
-        else:
-            self.ff_concat = nn.Linear(2*self.hidden_size, self.hidden_size)
+                            batch_first=True)
 
-        self.rnn2 = nn.LSTM(self.hidden_size * self.bi_mode + self.input_size,
+        self.rnn2 = nn.LSTM(self.hidden_size + self.input_size,
                             self.hidden_size,
                             self.n_layers,
                             dropout=self.dropout_p,
-                            batch_first=True,
-                            bidirectional=True)
+                            batch_first=True)
 
         # self.att_mech = seq2seqAtt(self.hidden_dim_att, self.hidden_dim_s, self.hidden_dim_t)
         self.att_mech = seq2seqAtt(self.hidden_size, self.hidden_size, self.hidden_size)
 
+        self.ff_concat = nn.Linear(2*self.hidden_size, self.hidden_size)
+
         # self.mdn = nn.Linear(self.hidden_size * 2 * self.bi_mode, self.num_gaussian * 6 + 1)
         self.mdn = nn.Linear(self.hidden_size, self.num_gaussian * 6 + 1)
-
-        self.att_len = 25
 
     def read_config(self):
         """
@@ -91,19 +82,20 @@ class UncondModelAttention(LightningModule):
         config_path = os.path.join(os.getcwd(), './config.yaml')
         with open(config_path) as f:
             params = yaml.load(f, Loader=SafeLoader)
-        model_params = params["UncondModelParams"]
+        model_params = params["UncondModelAttentionParams"]
         dataset_params = params["DatasetParams"]
 
         self.max_seq = dataset_params["max_seq_uncond"]
 
         self.input_size = model_params["input_size"]
-        self.bi_dir = model_params["bi_dir"]
-        self.bi_mode = model_params["bi_mode"]
+        # self.bi_dir = model_params["bi_dir"]
+        # self.bi_mode = model_params["bi_mode"]
         self.hidden_size = model_params["hidden_size"]
         self.n_layers = model_params["n_layers"]
         self.num_gaussian = model_params["num_gaussian"]
         self.dropout_p = model_params["dropout_p"]
         self.bias = model_params["bias"]
+        self.att_len = model_params["att_len"]
 
     def training_step(self, batch, batch_idx):
         """
@@ -165,14 +157,14 @@ class UncondModelAttention(LightningModule):
         hidden2 = self.initLHidden(batch_size, device)
 
         mdn_params = None
-        hidden1_list = self.att_len * [hidden1] # list of hidden sizes
+        hidden1_list = self.att_len * [hidden1[0][-1][None]] # list of hidden sizes
         loss = 0
         for stroke in range(self.max_seq):
-            mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :],
+            mdn_params, hidden1, hidden2, attn_weights = self.sample(input_tensor[:, stroke, :],
                                                        hidden1,
                                                        hidden2,
                                                        hidden1_list)
-            hidden1_list.append(hidden1)
+            hidden1_list.append(hidden1[0][-1][None])
             if len(hidden1_list) > self.att_len:
                 hidden1_list.pop(0)
             #hidden2_list.append(hidden2)
@@ -190,45 +182,30 @@ class UncondModelAttention(LightningModule):
         else:
             embed = inp
 
-        device = inp.device
-
         # encoder
         output1, hidden1 = self.rnn1(embed.float(), hidden1)
-        if self.bi_mode == 1:
-            output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
-
-        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
-
-        inp_skip = torch.cat([output1, embed], dim=-1)  # implementing skip connection
-
-        # print("\n\n size", inp.shape, "\n\n")
-        current_batch_size = inp.size(0)
-        # target_h = torch.zeros(size=(1, current_batch_size, self.hidden_dim_t))
-        if self.bi_mode == 1:
-            target_h = torch.zeros(size=(current_batch_size, self.att_len, 2*self.hidden_size)).to(device)
-        else:
-            target_h = torch.zeros(size=(current_batch_size, self.att_len, self.hidden_size)).to(device)
+        # target_h = hidden1[0].permute((1, 0, 2)) # (batch, 1, feat) (same as output1)
+        
+        # sequence of final hidden states (depth-wise)
+        hidden_seq1 = torch.cat(hidden1_list, dim=0).permute((1, 0, 2)) # (batch, seq, feat)
 
         # implementing attention
-        # source_context = self.att_mech(target_h, output1.squeeze(1))    # output1 (seq, 1, feat) -> (seq, feat)
-        source_context = self.att_mech(target_h, hidden_seq1)
-        weights = list(source_context[1])    # may be useful for visualization
-        source_context =  source_context[0] # (1, seq, feat)
+        # source_context = self.att_mech(target_h, hidden_seq1)
+        source_context = self.att_mech(output1, hidden_seq1)
+        attn_weights = list(source_context[1])    # may be useful for visualization
+        source_context =  source_context[0] # (batch, 1, feat)  **** check
+
+        # tilde_h1 = tanh(W_c[c_t;h_t]) - Luong et Al
+        # tilde_h1 = nn.Tanh()(self.ff_concat(torch.cat([source_context, target_h], axis=-1))) # (batch, 1, feat)
+        tilde_h1 = nn.Tanh()(self.ff_concat(torch.cat([source_context, output1], axis=-1))) # (batch, 1, feat)
+
+        inp_skip = torch.cat([tilde_h1, embed], dim=-1)  # implementing skip connection
         
         # decoder
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
-        if self.bi_mode == 1:
-            output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
-        target_h = output2 # batch, 1, feat
-        # print(source_context.shape, output2.shape)
-        tilde_output2 = nn.Tanh()(self.ff_concat(torch.cat([source_context,output2], axis=-1))) # batch, 1, feat
-
-        # why to use output 1 and 2? test with only tilde_output2
-        # output = torch.cat([output1, tilde_output2], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
-        # y_t = self.mdn(output.squeeze(1))
-        y_t = self.mdn(tilde_output2).squeeze(1) # batch, feat
+        y_t = self.mdn(output2.squeeze(1)) # (batch, feat)
         e_t = y_t[:, 0:1]
 
         pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t = torch.split(y_t[:, 1:], self.num_gaussian, dim=1)
@@ -239,11 +216,11 @@ class UncondModelAttention(LightningModule):
         #######################################################
 
         mdn_params = [e_t, pi_t, mu1_t, mu2_t, s1_t, s2_t, rho_t]
-        return mdn_params, hidden1, hidden2
+        return mdn_params, hidden1, hidden2, attn_weights
 
     def initLHidden(self, batch_size, device):
-        return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device),
-                torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device))
+        return (torch.zeros(self.n_layers, batch_size, self.hidden_size).float().to(device),
+                torch.zeros(self.n_layers, batch_size, self.hidden_size).float().to(device))
 
     def mdn_loss(self, mdn_params, data, mask=[]):
 
@@ -319,7 +296,8 @@ class UncondModelAttention(LightningModule):
 
         with torch.no_grad():
             model = copy.deepcopy(self).to("cpu")
-            strokes, mix_params = sample_uncond(model, self.hidden_size)
+            strokes, mix_params, attn_weights = sample_uncond_attn(model, self.hidden_size)
+            print("final attention weights:", attn_weights)
             fig = plot_stroke(strokes, return_fig=True)
             buf = io.BytesIO()
             fig.savefig(buf)
