@@ -115,6 +115,8 @@ class HandwrittingDataModule(LightningDataModule):
             return self.get_strokes_text
         elif model == "uncond" or model == "attn_uncond":
             return self.get_data_uncond
+        elif model == "uncond_attention":
+            return self.get_data_uncond
 
     def get_data_uncond(self, batch):
         # ind=0, batch_size=1, max_seq=400
