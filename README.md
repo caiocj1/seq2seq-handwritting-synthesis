@@ -8,12 +8,12 @@ new repository to refactor into PyTorch Lightning.
 Contributions to original repo:
 - Added primed sampling.
 - Added model with attention mechanism on RNN.
-- Added transformer model.
+- Added transformer model (available in branch `danilo`).
 - Added visualizations during training.
 
 ***
 
-### Usage:
+### Usage
 1. To launch training, ``python run_training -v <run_name> -m <model_name>``.
 
 Available models: ``["cond", "uncond", "attn_cond", "attn_uncond"]``. Default: `"cond"`.
@@ -29,3 +29,16 @@ sampling and for the
 conditional model, respectively.
 
 ***
+
+### Example Generations
+Conditional model generation:
+
+![Conditional model generation](figs/congen.png)
+
+Uncondition model generation:
+
+![Unconditional model generation](figs/uncond.png)
+
+Primed sampling:
+
+![Primed sampling](figs/primed.jpeg)
