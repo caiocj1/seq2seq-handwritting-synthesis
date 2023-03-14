@@ -4,12 +4,8 @@ import yaml
 
 from models.congen_model import ConGenModel
 from models.uncond_model import UncondModel
-<<<<<<< HEAD
-from models.uncond_model_attention import UncondModelAttention
-=======
 from models.attn_uncond_model import AttentionUncondModel
 from models.attn_congen_model import AttnConGenModel
->>>>>>> c36bd9a3ed27244f2361a13996382bca3f2c4e59
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -24,12 +20,7 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-<<<<<<< HEAD
-    parser.add_argument('--model', '-m', default='uncond_attention', choices=["cond", "uncond", "uncond_attention"])
-    # parser.add_argument('--model', '-m', default='uncond', choices=["cond", "uncond"])
-=======
     parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond", "attn_uncond"])
->>>>>>> c36bd9a3ed27244f2361a13996382bca3f2c4e59
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
@@ -54,15 +45,10 @@ if __name__ == '__main__':
         model = ConGenModel()
     elif args.model == "uncond":
         model = UncondModel()
-<<<<<<< HEAD
-    elif args.model == "uncond_attention":
-        model = UncondModelAttention()
-=======
     elif args.model == "attn_uncond":
         model = AttentionUncondModel()
     elif args.model == "attn_cond":
         model = AttnConGenModel()
->>>>>>> c36bd9a3ed27244f2361a13996382bca3f2c4e59
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
