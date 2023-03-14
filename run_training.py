@@ -4,6 +4,7 @@ import yaml
 
 from models.congen_model import ConGenModel
 from models.uncond_model import UncondModel
+from models.uncond_model_attention import UncondModelAttention
 from dataset import HandwrittingDataModule
 
 import torch.cuda
@@ -16,7 +17,8 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond"])
+    parser.add_argument('--model', '-m', default='uncond_attention', choices=["cond", "uncond", "uncond_attention"])
+    # parser.add_argument('--model', '-m', default='uncond', choices=["cond", "uncond"])
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
@@ -31,7 +33,7 @@ if __name__ == '__main__':
     data_module = HandwrittingDataModule(
         batch_size=training_params['batch_size'],
         num_workers=training_params['num_workers'],
-        max_samples=training_params['max_samples']
+        model=args.model
     )
     data_module.setup(stage='fit')
 
@@ -41,6 +43,8 @@ if __name__ == '__main__':
         model = ConGenModel()
     elif args.model == "uncond":
         model = UncondModel()
+    elif args.model == "uncond_attention":
+        model = UncondModelAttention()
 
     if args.weights_path is not None:
         model = model.load_from_checkpoint(args.weights_path)
