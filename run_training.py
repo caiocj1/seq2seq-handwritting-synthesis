@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v')
-    parser.add_argument('--model', '-m', default='attn_uncond', choices=["cond", "uncond", "attn_uncond"])
+    parser.add_argument('--model', '-m', default='cond', choices=["cond", "uncond", "attn_uncond"])
     parser.add_argument('--weights_path', '-w', default=None)
 
     args = parser.parse_args()
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     lr_monitor = LearningRateMonitor()
 
     # Trainer
-    trainer = Trainer(accelerator='gpu',
+    trainer = Trainer(accelerator='auto',
                       devices=1 if torch.cuda.is_available() else None,
                       max_epochs=60,
                       num_sanity_val_steps=0,
