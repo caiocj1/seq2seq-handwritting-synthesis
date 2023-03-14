@@ -70,8 +70,8 @@ class UncondModel(LightningModule):
     def training_step(self, batch, batch_idx):
         """
         Perform train step.
-        :param batch: tuple (X, y), where the shape of X is (batch_size, 23) and of y is (batch_size)
-        :param batch_idx: index of current batch, non applicable here
+        :param batch: data from collate_fn in dataset.py
+        :param batch_idx: index of current batch, not applicable here
         :return: mean loss
         """
         loss, metrics = self._shared_step(batch)
@@ -85,8 +85,8 @@ class UncondModel(LightningModule):
     def validation_step(self, batch, batch_idx):
         """
         Perform validation step.
-        :param batch: tuple (X, y), where the shape of X is (batch_size, 23) and of y is (batch_size)
-        :param batch_idx: index of current batch, non applicable here
+        :param batch: data from collate_fn in dataset.py
+        :param batch_idx: index of current batch, not applicable here
         :return: mean loss
         """
         loss, metrics = self._shared_step(batch)
@@ -100,7 +100,7 @@ class UncondModel(LightningModule):
     def test_step(self, batch, batch_idx):
         """
         Perform test step.
-        :param batch: tuple (X, y), where the shape of X is (batch_size, 23) and of y is (batch_size)
+        :param batch: data from collate_fn in dataset.py
         :param batch_idx: index of current batch, non applicable here
         :return: mean loss
         """
@@ -110,6 +110,11 @@ class UncondModel(LightningModule):
         return loss
 
     def _shared_step(self, batch):
+        """
+        Performs forward, calculates eventual metrics
+        :param batch: data from collate_fn in dataset.py
+        :return:
+        """
         mdn_params, hidden1, hidden2, loss = self.forward(batch)
 
         metrics = self.calc_metrics(mdn_params, batch)
@@ -117,6 +122,11 @@ class UncondModel(LightningModule):
         return loss, metrics
 
     def forward(self, batch):
+        """
+        Loop through strokes in batch, sending to model.
+        :param batch: data from collate_fn in dataset.py
+        :return: mdn_params, hidden states, loss
+        """
         batch_size = batch[0].size(0)
 
         input_tensor = batch[0]
@@ -139,6 +149,14 @@ class UncondModel(LightningModule):
         return mdn_params, hidden1, hidden2, loss
 
     def sample(self, inp, hidden1, hidden2):
+        """
+        Forward of old repository. Takes one stroke for all items in batch and returns new hidden states
+        and mixture density parameters.
+        :param inp: stroke tensor (batch_size, input_size)
+        :param hidden1: hidden state of layer 1
+        :param hidden2: hidden state of layer 2
+        :return: mixture density parameters, new hidden states
+        """
         if len(inp.size()) == 2:
             embed = inp.unsqueeze(1)
         else:
@@ -170,11 +188,16 @@ class UncondModel(LightningModule):
         return mdn_params, hidden1, hidden2
 
     def initLHidden(self, batch_size, device):
+        """
+        Initialize hidden state with zeros
+        :param batch_size: batch size
+        :param device: device to send hidden state tensor
+        :return: hidden state tuple (LSTM)
+        """
         return (torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device),
                 torch.zeros(self.n_layers * self.bi, batch_size, self.hidden_size).float().to(device))
 
     def mdn_loss(self, mdn_params, data, mask=[]):
-
         def get_2d_normal(x1, x2, mu1, mu2, s1, s2, rho):
             ##### implementing Eqn. 24 and 25 of the paper ###########
             norm1 = torch.sub(x1.view(-1, 1), mu1)

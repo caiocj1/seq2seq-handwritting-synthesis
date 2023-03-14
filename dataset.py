@@ -7,9 +7,6 @@ from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
 
-import pdb
-
-
 class StrokeDataset(Dataset):
     def __init__(self):
         super(StrokeDataset, self).__init__()
@@ -31,6 +28,12 @@ class HandwrittingDataModule(LightningDataModule):
             batch_size: int = 32,
             num_workers: int = 0,
             model: str = None):
+        """
+        Initializes LightningDataModule. Goes into Trainer.fit for training.
+        :param batch_size: number of items from StrokeDataset per batch
+        :param num_workers: number of workers
+        :param model: which model datamodule is for
+        """
         super().__init__()
 
         self.model = model
@@ -60,8 +63,8 @@ class HandwrittingDataModule(LightningDataModule):
 
     def setup(self, stage: str = None):
         """
-        Build data dictionaries for training or prediction.
-        :param stage: 'fit' for training, 'predict' for prediction
+        Build datasets for training or prediction.
+        :param stage: 'fit' for training, 'predict' for prediction (not used)
         :return: None
         """
         if stage == 'fit':
@@ -77,8 +80,7 @@ class HandwrittingDataModule(LightningDataModule):
 
     def train_dataloader(self):
         """
-        Uses train dictionary (output of format_X) to return train DataLoader, that will be fed to pytorch lightning's
-        Trainer.
+        Uses train dataset to return train DataLoader, that will be fed to PyTorch Lightning's Trainer.
         :return: train DataLoader
         """
         return DataLoader(dataset=self.data_train,
@@ -89,9 +91,8 @@ class HandwrittingDataModule(LightningDataModule):
 
     def val_dataloader(self):
         """
-        Uses val dictionary (output of format_X) to return val DataLoader, that will be fed to pytorch lightning's
-        Trainer.
-        :return: train DataLoader
+        Returns val DataLoader. Not used.
+        :return: val DataLoader
         """
         return DataLoader(dataset=self.data_val,
                          batch_size=self.hparams.batch_size,
@@ -101,8 +102,7 @@ class HandwrittingDataModule(LightningDataModule):
 
     def predict_dataloader(self):
         """
-        Uses predict dictionary (output of format_X) to return predict DataLoader, that will be fed to pytorch
-        lightning's Trainer.
+        Returns predict DataLoader. Not used.
         :return: predict DataLoader
         """
         return DataLoader(dataset=self.data_predict,
@@ -111,14 +111,22 @@ class HandwrittingDataModule(LightningDataModule):
                           shuffle=False)
 
     def collate_fn(self, model):
+        """
+        Choose collate_fn based on model
+        :param model: string that selects model
+        :return: correct collate_fn
+        """
         if model == "cond":
             return self.get_strokes_text
         elif model == "uncond" or model == "attn_uncond":
             return self.get_data_uncond
 
     def get_data_uncond(self, batch):
-        # ind=0, batch_size=1, max_seq=400
-
+        """
+        collate_fn for unconditional models
+        :param batch: list of items from StrokeDataset
+        :return: tensors in appropriate shape for unconditional models
+        """
         batch_size = len(batch)
 
         big_x, big_y = [], []
@@ -157,6 +165,11 @@ class HandwrittingDataModule(LightningDataModule):
         return X, y
 
     def get_strokes_text(self, batch):
+        """
+        collate_fn for conditional models
+        :param batch: list of items from StrokeDataset
+        :return: tensors in appropriate shape for conditional models
+        """
         big_x, big_y, big_text = [], [], []
         stroke_mask, text_mask, len_text = [], [], []
 
