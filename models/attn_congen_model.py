@@ -15,10 +15,28 @@ import torchvision
 from utils.sampling import sample_congen
 from utils.plots import plot_stroke
 
-class ConGenModel(LightningModule):
+class SelfAttention(nn.Module):
+    def __init__(self, hidden_size):
+        super(SelfAttention, self).__init__()
+
+        self.query = nn.Linear(hidden_size, 100, bias=False)
+        self.key = nn.Linear(hidden_size, 100, bias=False)
+        self.value = nn.Linear(hidden_size, 2 * hidden_size, bias=False)
+
+    def forward(self, target, seq):
+        Q = self.query(target)
+        K = self.key(seq)
+        V = self.value(seq)
+
+        alpha = torch.softmax(Q.T@K)
+        y = V@alpha
+
+        return y
+
+class AttnConGenModel(LightningModule):
 
     def __init__(self):
-        super(ConGenModel, self).__init__()
+        super(AttnConGenModel, self).__init__()
 
         # Read config file if needed
         self.read_config()
@@ -135,10 +153,15 @@ class ConGenModel(LightningModule):
         old_w = text_tensor.narrow(1, 0, 1).to(device)
 
         mdn_params = None
+        hidden1_list = [hidden1]
+
         loss = 0
         for stroke in range(self.max_seq):
             mdn_params, hidden1, hidden2 = self.sample(stroke_tensor[:, stroke, :], text_tensor,
-                                                  old_k, old_w, text_len, hidden1, hidden2)
+                                                  old_k, old_w, text_len, hidden1, hidden2, hidden1_list)
+            hidden1_list.append(hidden1)
+            if len(hidden1_list) > 15:
+                hidden1_list.pop(0)
 
             old_k = mdn_params[-1]
             old_w = mdn_params[-2].unsqueeze(1)
@@ -148,7 +171,7 @@ class ConGenModel(LightningModule):
 
         return mdn_params, hidden1, hidden2, loss
 
-    def sample(self, inp, char_vec, old_k, old_w, text_len, hidden1, hidden2, bias=0):
+    def sample(self, inp, char_vec, old_k, old_w, text_len, hidden1, hidden2, hidden1_list, bias=0):
         if len(inp.size()) == 2:
             inp = inp.unsqueeze(1)
 
@@ -158,6 +181,9 @@ class ConGenModel(LightningModule):
         output1, hidden1 = self.rnn1(embed, hidden1)
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
+
+        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
+        y1 = self.self_attn(hidden1[0][-1][None].permute(1, 0, 2), hidden_seq1)
 
         ##### implementing Eqn. 48 - 51 of the paper ###########
         abk_t = self.window(output1.squeeze(1)).exp()
@@ -173,14 +199,12 @@ class ConGenModel(LightningModule):
         win_t = torch.sum(torch.mul(phi.unsqueeze(2), char_vec), dim=1)
         ##########################################################
 
-        inp_skip = torch.cat([output1, inp, win_t.unsqueeze(1)], dim=-1).float()  # implementing skip connection
-
-
+        inp_skip = torch.cat([y1, inp, win_t.unsqueeze(1)], dim=-1).float()  # implementing skip connection
 
         output2, hidden2 = self.rnn2(inp_skip, hidden2)
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
-        output = torch.cat([output1, output2], dim=-1)
+        output = torch.cat([y1, output2], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
         y_t = self.mdn(output.squeeze(1))

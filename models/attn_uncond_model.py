@@ -24,16 +24,17 @@ class SelfAttention(nn.Module):
         self.key = nn.Linear(hidden_size, 100, bias=False)
         self.value = nn.Linear(hidden_size, 2 * hidden_size, bias=False)
 
-    def forward(self, sequence):
-        Q = self.query(sequence)
-        K = self.key(sequence)
-        V = self.value(sequence)
+    def forward(self, target, seq):
+        Q = self.query(target)
+        K = self.key(seq)
+        V = self.value(seq)
 
-        A = torch.einsum('btk,bsk->bst', Q, K)
-        A = torch.softmax(A, dim=-1)
-        y = A @ V
+        alpha = torch.einsum('btk,bsk->bst', Q, K)
+        alpha = torch.softmax(alpha, dim=1)
 
-        return y, A
+        y = torch.einsum('bki,bkd->bid', alpha, V)
+
+        return y
 
 
 class AttentionUncondModel(LightningModule):
@@ -73,7 +74,7 @@ class AttentionUncondModel(LightningModule):
         :return: None
         """
         config_path = os.path.join(os.getcwd(), './config.yaml')
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             params = yaml.load(f, Loader=SafeLoader)
         model_params = params["UncondModelParams"]
         dataset_params = params["DatasetParams"]
@@ -150,18 +151,17 @@ class AttentionUncondModel(LightningModule):
 
         mdn_params = None
         hidden1_list = [hidden1]
-        #hidden2_list = [hidden2]
+
         loss = 0
         for stroke in range(self.max_seq):
             mdn_params, hidden1, hidden2 = self.sample(input_tensor[:, stroke, :],
                                                        hidden1,
                                                        hidden2,
-                                                       hidden1_list,
-                                                       None)
+                                                       hidden1_list)
             hidden1_list.append(hidden1)
             if len(hidden1_list) > 15:
                 hidden1_list.pop(0)
-            #hidden2_list.append(hidden2)
+
             out_sample = target_tensor[:, stroke, :]
 
             loss += self.mdn_loss(mdn_params, out_sample)
@@ -169,7 +169,7 @@ class AttentionUncondModel(LightningModule):
 
         return mdn_params, hidden1, hidden2, loss
 
-    def sample(self, inp, hidden1, hidden2, hidden1_list, hidden2_list):
+    def sample(self, inp, hidden1, hidden2, hidden1_list):
         if len(inp.size()) == 2:
             embed = inp.unsqueeze(1)
         else:
@@ -179,22 +179,19 @@ class AttentionUncondModel(LightningModule):
         if self.bi_mode == 1:
             output1 = output1[:, :, 0:self.hidden_size] + output1[:, :, self.hidden_size:]
 
-        #hidden_seq1 = torch.cat([hidden[-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
-        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list] + [hidden1[0][-1][None]], dim=0).permute((1, 0, 2))
-        y1, A1 = self.self_attn(hidden_seq1)
+        
 
-        #output1_til = output1 + y1[:, -1:]
-        output1_til = output1 + y1.sum(1, keepdim=True)
-        #output1_til = y1[:, -1:]
+        hidden_seq1 = torch.cat([hidden[0][-1][None] for hidden in hidden1_list], dim=0).permute((1, 0, 2))
+        y1 = self.self_attn(hidden1[0][-1][None].permute(1, 0, 2), hidden_seq1)
 
-        inp_skip = torch.cat([output1_til, embed], dim=-1)
+        inp_skip = torch.cat([y1, embed], dim=-1)
         output2, hidden2 = self.rnn2(inp_skip.float(), hidden2)
         if self.bi_mode == 1:
             output2 = output2[:, :, 0:self.hidden_size] + output2[:, :, self.hidden_size:]
 
         #hiddens = torch.cat[hidden[0][-1] for hidden in hidden1_list]
 
-        output = torch.cat([output1_til, output2], dim=-1)
+        output = torch.cat([y1, output2], dim=-1)
 
         ##### implementing Eqn. 17 to 22 of the paper ###########
         y_t = self.mdn(output.squeeze(1))
