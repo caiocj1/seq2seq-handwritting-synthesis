@@ -13,7 +13,7 @@ Contributions to original repo:
 
 ***
 
-Usage:
+### Usage:
 1. To launch training, ``python run_training -v <run_name> -m <model_name>``.
 
 Available models: ``["cond", "uncond", "attn_cond", "attn_uncond"]``. Default: `"cond"`.
@@ -27,3 +27,5 @@ Images generated at the end of each epoch are available in TensorBoard.
 Optional arguments: ``-i <index_of_training_set> -t <text_to_generate>``. These arguments are used for primed 
 sampling and for the 
 conditional model, respectively.
+
+***
