@@ -7,13 +7,15 @@ from torch.utils.data import DataLoader, Dataset
 import torch
 import torch.nn as nn
 
+import pdb
+
 
 class StrokeDataset(Dataset):
     def __init__(self):
         super(StrokeDataset, self).__init__()
 
         self.strokes = np.load('./data/strokes.npy', allow_pickle=True, encoding='latin1')
-        with open('./data/sentences.txt') as f:
+        with open('./data/sentences.txt', 'r') as f:
             self.texts = f.readlines()
         self.texts = [a.split('\n')[0] for a in self.texts]
 
@@ -45,12 +47,15 @@ class HandwrittingDataModule(LightningDataModule):
         :return: None
         """
         config_path = os.path.join(os.getcwd(), 'config.yaml')
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             params = yaml.load(f, Loader=SafeLoader)
         dataset_params = params["DatasetParams"]
 
         self.min_seq = dataset_params["min_seq"]
-        self.max_seq = dataset_params["max_seq"] if self.model == "cond" else dataset_params["max_seq_uncond"]
+        if self.model == "cond":
+            self.max_seq = dataset_params["max_seq"]
+        else:
+            self.max_seq = dataset_params["max_seq_uncond"]
         self.max_text_len = dataset_params["max_text_len"]
 
     def setup(self, stage: str = None):
@@ -108,7 +113,7 @@ class HandwrittingDataModule(LightningDataModule):
     def collate_fn(self, model):
         if model == "cond":
             return self.get_strokes_text
-        elif model == "uncond":
+        elif model == "uncond" or model == "attn_uncond":
             return self.get_data_uncond
 
     def get_data_uncond(self, batch):

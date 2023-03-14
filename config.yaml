@@ -4,6 +4,9 @@ DatasetParams:
   max_seq_uncond: 400
   max_text_len: 40
 
+AttentionMechParams:
+
+
 UncondModelParams:
   input_size: 3
   hidden_size: 400
