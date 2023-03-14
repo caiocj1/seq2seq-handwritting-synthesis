@@ -4,22 +4,17 @@ DatasetParams:
   max_seq_uncond: 400
   max_text_len: 30
 
-AttentionMechParams:
-
-
 UncondModelParams:
   input_size: 3
   hidden_size: 400
   n_layers: 1
   num_gaussian: 20
   dropout_p: 0.2
-  # bi_dir: True
-  # bi_mode: 2
-  bi_dir: False
+  bi_dir: True
   bi_mode: 2
   bias: 0
 
-UncondModelAttentionParams:
+AttentionUncondModelParams:
   input_size: 3
   hidden_size: 400
   n_layers: 1
