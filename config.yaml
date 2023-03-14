@@ -2,7 +2,7 @@ DatasetParams:
   min_seq: 400
   max_seq: 800
   max_seq_uncond: 400
-  max_text_len: 30
+  max_text_len: 25
 
 UncondModelParams:
   input_size: 3
@@ -36,6 +36,6 @@ CongenModelParams:
   bias: 0
 
 TrainingParams:
-  batch_size: 4
+  batch_size: 32
   num_workers: 0
   clip: 10.0
